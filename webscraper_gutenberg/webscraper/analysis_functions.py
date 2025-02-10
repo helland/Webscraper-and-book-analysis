@@ -4,8 +4,6 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
 import re
 from functools import lru_cache
-import concurrent.futures
-
 
 # find the word used most often in a text (converted to integer). excluding things like .,!?-_</
 def find_most_frequent_word(text, exclude_values):
@@ -235,45 +233,6 @@ def _get_word_from_dict(cursor, dictionary_table_name, word_id):
     cursor.execute(get_word_query, (int(word_id),))  
     word_data = cursor.fetchone()
     return word_data[0] if word_data else None
-
-# Decodes an array of integers (word IDs) into a list of words by getting one word at a time from the database (only use for short encoded_texts) - NOTE: old version, might be deprecated
-def cipher_decoder_short(encoded_text, language_id, db_config):
-    try:
-        cnx = mysql.connector.connect(**db_config)
-        cursor = cnx.cursor()
-
-        get_language_query = "SELECT Name FROM languages WHERE id = %s"
-        cursor.execute(get_language_query, (language_id,))
-        language_name = cursor.fetchone()[0].lower()
-        dictionary_table_name = f"{language_name}dictionary"
-
-        decoded_words = []
-
-        # Convert encoded text to a list of ints if it's a NumPy array
-        if isinstance(encoded_text, np.ndarray):
-            encoded_text = encoded_text.tolist()   
-        
-        # Making use of multithreading for database lookup
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [executor.submit(_get_word_from_dict, cursor, dictionary_table_name, word_id)
-                       for word_id in encoded_text]   
-
-            for future, word_id in zip(concurrent.futures.as_completed(futures), encoded_text):  
-                word = future.result()
-                if word:
-                    decoded_words.append(word)
-                else:
-                    decoded_words.append(f"[ID {word_id} not found]")
-
-        return decoded_words
-
-    except mysql.connector.Error as err:
-        print(f"Database error: {err}")
-        return []
-
-    finally:
-        if cnx:
-            cnx.close()
 
 # fetch all words and IDs from relevant dictionary in the database
 @lru_cache(maxsize=350000)

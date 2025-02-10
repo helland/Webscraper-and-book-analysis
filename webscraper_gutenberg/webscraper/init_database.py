@@ -44,18 +44,7 @@ def create_tables(db_config):
         )
         """
         cursor.execute(create_english_dictionary_table)
-    
-        # Create SourceWebsites table
-        #create_source_websites_table = """
-        #CREATE TABLE IF NOT EXISTS SourceWebsites (
-        #    Id INT AUTO_INCREMENT PRIMARY KEY,
-        #    PageName TEXT,
-        #    MainPageLink TEXT,
-        #    BookContentLink TEXT
-        #)
-        #"""
-        #cursor.execute(create_source_websites_table)
-    
+     
         # Create Author table
         create_author_table = """
         CREATE TABLE IF NOT EXISTS author (
@@ -63,16 +52,6 @@ def create_tables(db_config):
             Name TINYTEXT)
         """
         cursor.execute(create_author_table)
-    
-        # Create Categories table
-        #create_categories_table = """
-        #CREATE TABLE IF NOT EXISTS Categories (
-        #    Id INT AUTO_INCREMENT PRIMARY KEY,
-        #    Name TEXT,
-        #    SubcategoryOf INT
-        #)
-        #"""
-        #cursor.execute(create_categories_table)
     
         # Create Book table
         create_book_table = """

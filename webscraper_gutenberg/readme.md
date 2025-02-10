@@ -47,7 +47,7 @@ An object meant to handle all stored information on a book while changes or data
 
 1. **Clone the repository:**
 
-	git clone [https://github.com/helland/Webscraper-and-book-analysis.git](https://github.com/helland/Webscraper-and-book-analysis.git)   
+	git clone [https://github.com/helland/Webscraper-and-book-analysis.git](https://github.com/helland/Webscraper-and-book-analysis/tree/main/webscraper_gutenberg.git)   
 
 2. **Install dependencies:**
 
