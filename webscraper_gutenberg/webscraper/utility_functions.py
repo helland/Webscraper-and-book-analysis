@@ -35,12 +35,15 @@ def update_word_entry_counts( db_config):
             cnx.close()
 
 # Returns a list of books with input title as dictionaries.
-def get_books_with_title(title, db_config):
+def get_books_with_title(title, get_all, db_config):
     try:
         cnx = mysql.connector.connect(**db_config)
         cursor = cnx.cursor(dictionary=True)  
-
-        query = "SELECT Id, SourceWebsite, Title, Author, Language, StoredAndProcessed FROM book WHERE Title = %s"
+        
+        if get_all: # get all books by title
+            query = "SELECT Id, SourceWebsite, Title, Author, Language, StoredAndProcessed, WordCount, CharacterCount FROM book WHERE Title = %s"
+        else:       # only get books stored and encoded
+            query = "SELECT Id, SourceWebsite, Title, Author, Language, WordCount, CharacterCount FROM book WHERE StoredAndProcessed = 1 AND Title = %s"
         cursor.execute(query, (title,))
         books = cursor.fetchall()
         
@@ -57,7 +60,59 @@ def get_books_with_title(title, db_config):
     finally:
         if cnx:
             cnx.close()
-                        
+
+# Returns a list of books with input title as dictionaries.
+def get_book_ids_with_title(title, get_all, db_config):
+    try:
+        cnx = mysql.connector.connect(**db_config)
+        cursor = cnx.cursor(dictionary=True)  
+        
+        if get_all: # get all books by title
+            query = "SELECT Id FROM book WHERE Title = %s"
+        else:       # only get books stored and encoded
+            query = "SELECT Id FROM book WHERE StoredAndProcessed = 1 AND Title = %s" 
+        
+        cursor.execute(query, (title,))
+        books = cursor.fetchall()
+        book_ids = []
+ 
+        for book in books:
+            book_ids.append(book['Id'])
+        return book_ids  
+
+    except mysql.connector.Error as err:
+        print(f"Error retrieving books: {err}")
+        return []   
+
+    finally:
+        if cnx:
+            cnx.close()
+            
+            
+# Returns a list of books with input title as dictionaries.
+def get_stored_and_processed_books(db_config):
+    try:
+        cnx = mysql.connector.connect(**db_config)
+        cursor = cnx.cursor(dictionary=True)  
+
+        query = "SELECT Id, SourceWebsite, Title, Author, Language, WordCount, CharacterCount FROM book WHERE StoredAndProcessed = 1"
+        cursor.execute(query)
+        books = cursor.fetchall()
+        
+        # replace author and language IDs with their names
+        for i in range(len(books)):
+            books[i]['Author'] = _get_author(cursor, books[i]['Author'])
+            books[i]['Language'] = _get_language(cursor, books[i]['Language'])
+        return books   
+
+    except mysql.connector.Error as err:
+        print(f"Error retrieving books: {err}")
+        return []   
+
+    finally:
+        if cnx:
+            cnx.close()
+                       
 # Get author from the database based on input id.
 def _get_author(cursor, author_id):
     get_author_id_query = "SELECT Name FROM author WHERE Id = %s"
