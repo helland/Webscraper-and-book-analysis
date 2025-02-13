@@ -41,9 +41,13 @@ def get_books_with_title(title, get_all, db_config):
         cursor = cnx.cursor(dictionary=True)  
         
         if get_all: # get all books by title
-            query = "SELECT Id, SourceWebsite, Title, Author, Language, StoredAndProcessed, WordCount, CharacterCount FROM book WHERE Title = %s"
+            query = """SELECT Id, SourceWebsite, Title, Author, Language, 
+            StoredAndProcessed, WordCount, CharacterCount FROM book 
+            WHERE Title = %s"""
         else:       # only get books stored and encoded
-            query = "SELECT Id, SourceWebsite, Title, Author, Language, WordCount, CharacterCount FROM book WHERE StoredAndProcessed = 1 AND Title = %s"
+            query = """SELECT Id, SourceWebsite, Title, Author, Language, 
+            StoredAndProcessed, WordCount, CharacterCount FROM book 
+            WHERE StoredAndProcessed = 1 AND Title = %s"""
         cursor.execute(query, (title,))
         books = cursor.fetchall()
         
@@ -128,7 +132,7 @@ def _get_language(cursor, language_id):
     return language_name['Name']
 
 # a function that searches through a database dictionary table and returns the ID value of all words that contain nothing but symbols that are not to be counted as "regular words"
-def get_non_alphanumerics(dictionary_name, db_config):
+def get_non_alphanumerics(dictionary_name, db_config): # NOTE: this function was added to Book object init. It might not be useful anymore, but I'm keeping it in case it might be needed outside a book object
     try:
         cnx = mysql.connector.connect(**db_config)
         cursor = cnx.cursor()
@@ -152,3 +156,5 @@ def get_non_alphanumerics(dictionary_name, db_config):
         if cnx:
             cnx.close()    
 
+
+  

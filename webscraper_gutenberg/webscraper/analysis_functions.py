@@ -21,7 +21,10 @@ def find_most_frequent_word(text, exclude_values):
 # Finds the n most frequent words in the text 
 def find_top_n_most_frequent(text, number_of_words, exclude_values):
     top_n_values = []
-
+    
+    if number_of_words is None or number_of_words == 0:
+        number_of_words = 1 # return only 1 value if the "number of words" parameter is handled incorrectly.     
+    
     for _ in range(number_of_words):
         most_frequent = find_most_frequent_word(text, exclude_values)
         if most_frequent is None:
@@ -98,7 +101,9 @@ def calculate_average_sentence_length(text_array, separator_array):
     return sum(sentence_lengths) / len(sentence_lengths)
 
 # find all sentences that begins with a given word
-def find_sentences_starting_with(text_array, separator_array, first_word_in_sentence):    
+def find_sentences_starting_with(text_array, separator_array, first_word_in_sentence):
+    if first_word_in_sentence is None:
+        return 0   # return 0 if the "first word" parameter is handled incorrectly.
     sentences = split_text_by_sentences(text_array, separator_array)
     result_sentences = [sentence for sentence in sentences if sentence and sentence[0] == first_word_in_sentence]  # Check if sentence is not empty
     return result_sentences
@@ -124,7 +129,7 @@ def find_longest_words(text, language_id, db_config):
             raise ValueError(f"Language with ID {language_id} not found.")
         language_name = result[0].lower()
 
-        dictionary_table_name = f"{language_name}dictionary"
+        dictionary_table_name = f"{language_name.lower()}dictionary"
 
         word_lengths = _get_all_word_lengths_from_dict(cursor, dictionary_table_name)
 
@@ -150,40 +155,6 @@ def find_longest_words(text, language_id, db_config):
         if cnx:
             cnx.close()       
        
-       
-       
-            
-# Updates the NumberOfWordEntries column in the languages table with the actual number of word entries in the corresponding dictionary tables.            
-def update_word_entry_counts(db_config):      
-    try:
-        cnx = mysql.connector.connect(**db_config)
-        cursor = cnx.cursor()
-        
-        # Get all languages from the languages table
-        get_languages_query = "SELECT id, Name FROM languages"
-        cursor.execute(get_languages_query)
-        languages = cursor.fetchall()
-        
-        for language_id, language_name in languages:
-            dictionary_table_name = f"{language_name.lower()}dictionary"
-            
-            # Get number of entries in the dictionary table
-            get_word_count_query = f"SELECT COUNT(*) FROM {dictionary_table_name}"
-            cursor.execute(get_word_count_query)
-            word_count = cursor.fetchone()[0]
-            
-            # Update NumberOfWordEntries in languages table
-            update_query = "UPDATE languages SET NumberOfWordEntries = %s WHERE id = %s"
-            cursor.execute(update_query, (word_count, language_id))
-        
-        cnx.commit()
-    
-    except mysql.connector.Error as err:
-        print(f"Error updating word entry counts: {err}")
-    finally:
-        if cnx:
-            cnx.close()
-
 
 # Returns a list of all words that are the same in all input books at the same placement (eg. word number 10034 = "this" in all books would add 10034 to the return array).
 def word_placement_equivalence(books):
@@ -201,7 +172,7 @@ def word_placement_equivalence(books):
         if all(book.text[i] == word for book in books[1:]):  # Check other books
             equivalent_indices.append(i)
 
-    return np.array(equivalent_indices, dtype=int)   
+    return equivalent_indices #np.array(, dtype=int)   
 
 # does the same as above, except it compares string values instead of integers
 def word_placement_equivalence_strings(books):
@@ -252,7 +223,7 @@ def cipher_decoder(encoded_text, language_id, db_config):
         get_language_query = "SELECT Name FROM languages WHERE id = %s"
         cursor.execute(get_language_query, (language_id,))
         language_name = cursor.fetchone()[0].lower()
-        dictionary_table_name = f"{language_name}dictionary"
+        dictionary_table_name = f"{language_name.lower()}dictionary"
 
         word_dict = _get_all_words_from_dict(cursor, dictionary_table_name)
         

@@ -982,3 +982,37 @@ def cipher_decoder_short(encoded_text, language_id, db_config):
         #)
         #"""
         #cursor.execute(create_categories_table)
+        
+'''  # why was there a duplicate of this? check later          
+# Updates the NumberOfWordEntries column in the languages table with the actual number of word entries in the corresponding dictionary tables.            
+def update_word_entry_counts(db_config):      
+    try:
+        cnx = mysql.connector.connect(**db_config)
+        cursor = cnx.cursor()
+        
+        # Get all languages from the languages table
+        get_languages_query = "SELECT id, Name FROM languages"
+        cursor.execute(get_languages_query)
+        languages = cursor.fetchall()
+        
+        for language_id, language_name in languages:
+            dictionary_table_name = f"{language_name.lower()}dictionary"
+            
+            # Get number of entries in the dictionary table
+            get_word_count_query = f"SELECT COUNT(*) FROM {dictionary_table_name}"
+            cursor.execute(get_word_count_query)
+            word_count = cursor.fetchone()[0]
+            
+            # Update NumberOfWordEntries in languages table
+            update_query = "UPDATE languages SET NumberOfWordEntries = %s WHERE id = %s"
+            cursor.execute(update_query, (word_count, language_id))
+        
+        cnx.commit()
+    
+    except mysql.connector.Error as err:
+        print(f"Error updating word entry counts: {err}")
+    finally:
+        if cnx:
+            cnx.close()
+
+'''

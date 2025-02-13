@@ -1,6 +1,8 @@
 import mysql.connector
 import numpy as np
 import re
+import webscraper.utility_functions as utils
+from functools import lru_cache
 
 class Book:
     def __init__(self, book_id, db_config, include_filtered=False, include_lemmatized=False):
@@ -14,6 +16,8 @@ class Book:
         self.character_count = None
         self.source_website = None
         self.text = None
+        self.exclude = None
+        self.line_break = None
         self.filtered_text = None if not include_filtered else np.array([], dtype=np.int32)
         self.lemmatized_text = None if not include_lemmatized else np.array([], dtype=np.int32)
         self.db_config = db_config
@@ -56,13 +60,30 @@ class Book:
                     get_lemmatized_books_query = "SELECT WordId FROM LemmatizedBooks WHERE BookId = %s"
                     cursor.execute(get_lemmatized_books_query, (book_id,))
                     self.lemmatized_text = np.array([row[0] for row in cursor.fetchall()], dtype=np.int32)
-
+                
+                # define a set of values that will not be used when running certain analyses on the book text (default = non-alphanumerics). Change with set/add/remove methods below
+                query = f"SELECT Id, Word FROM {self.language_name}dictionary"  
+                cursor.execute(query)
+                words = cursor.fetchall()
+        
+                self.exclude = []
+                for word_id, word in words:
+                    if not re.fullmatch(r"[a-zA-Z0-9]+", word):  # Check for only non-alphanumeric
+                        self.exclude.append(word_id)         
+                #self.exclude = utils.get_non_alphanumerics(f"{self.language_name}dictionary", self.db_config) # decided to just copy the code from utility functions to avoid setting up extra database connections
+                
+                # Find line break (\n) in the relevant dictionary table and save it locally
+                query = f"SELECT Id FROM {self.language_name}dictionary WHERE Word = '\n'"  
+                cursor.execute(query)
+                self.line_break = cursor.fetchone()[0]
+                
         except mysql.connector.Error as err:
             print(f"Error fetching book data: {err}")
         finally:
             if cnx:
                 cnx.close()      
 
+    
     # Getters
     def get_title(self):
         return self.title
@@ -85,21 +106,31 @@ class Book:
     def get_source_website(self):
         return self.source_website
 
-    def get_words_to_integer(self):
+    def get_text(self):
         return self.text
 
-    def get_filtered_books(self):
+    def get_filtered_text(self):
         if self.filtered_text is not None:
             return self.filtered_text
         else:
             raise AttributeError("Filtered books data is not available for this object.")
 
-    def get_lemmatized_books(self):
+    def get_lemmatized_text(self):
         if self.lemmatized_text is not None:
             return self.lemmatized_text
         else:
             raise AttributeError("Lemmatized books data is not available for this object.")
-
+    def get_excluded_values(self):
+        return self.exclude
+    
+    # get all words in the text at parameter indices 
+    def get_text_at_indices(self, indices):
+        return [self.text[i] for i in indices]        
+    def get_filtered_text_at_indices(self, indices):
+        return [self.filtered_text[i] for i in indices]
+    def get_lemmatized_text_at_indices(self, indices):
+        return [self.lemmatized_text[i] for i in indices]
+    
     # Setters 
     def set_title(self, new_title):
         self.title = new_title
@@ -128,6 +159,9 @@ class Book:
         else:
             print("input is not a numpy array")
 
+    def set_excluded_values(self, excluded_values):
+        self.exclude = excluded_values
+        
     def set_filtered_books(self, new_filtered_text):
         if self.filtered_text is not None:
             if isinstance(new_filtered_text, np.ndarray):
@@ -145,7 +179,14 @@ class Book:
                 print("input is not a numpy array")
         else:
             raise AttributeError("Lemmatized books data is not available for this object.")
-
+    
+    def add_excluded_value(self, add):
+        self.exclude.append(add)
+        
+    def remove_excluded_value(self, value):
+        if value in self.exclude:
+            self.exclude.remove(value)
+            
     # Reuploads the book data to the database, replacing existing entries.
     def reupload_to_database(self):
         try:
@@ -382,14 +423,20 @@ class Book:
     def add_word_to_text(self, word_id, index=None):
         if index is None:
             self.text = np.append(self.text, word_id)
+            self.filtered_text = np.append(self.filtered_text, word_id)
+            self.text = np.append(self.text, word_id)
         else:
             self.text = np.insert(self.text, index, word_id)
+            self.filtered_text = np.insert(self.filtered_text, index, word_id)
+            self.lemmatized_texttext = np.insert(self.lemmatized_texttext, index, word_id)
         
         
     # Remove word from text
     def remove_word_from_text(self, word_id):
         try:
             self.text = np.delete(self.text, np.where(self.text == word_id))
+            self.filtered_text = np.delete(self.filtered_text, np.where(self.filtered_text == word_id))
+            self.lemmatized_text = np.delete(self.lemmatized_text, np.where(self.lemmatized_text == word_id))
         except ValueError:
             pass  # Word not found
       
@@ -429,6 +476,52 @@ class Book:
             return np.count_nonzero(self.lemmatized_text == word_id)
         else:
             raise ValueError("Invalid array_type or data not available.")
-        
 
+@lru_cache(maxsize=350000)   
+def _get_all_word_lengths_from_dict(cursor, dictionary_table_name):
+    get_word_lengths_query = f"SELECT Id, WordCharacterLength FROM {dictionary_table_name}"
+    cursor.execute(get_word_lengths_query)
+    word_lengths_dict = dict(cursor.fetchall())
+    return word_lengths_dict
+        
+def get_longest_words(self, filtered_text=False, lemmatized_text=False):
+    try:
+        cnx = mysql.connector.connect(**self.db_config)
+        cursor = cnx.cursor()
+
+        dictionary_table_name = f"{self.language_name}dictionary"
+
+        word_lengths = _get_all_word_lengths_from_dict(cursor, dictionary_table_name)
+        
+        # Decide which version of the text you want the longest word from
+        if filtered_text and lemmatized_text:
+            text = self.text # if both are set to true, use the regular text instead.
+        elif filtered_text:
+            text = self.filtered_text
+        elif lemmatized_text:
+            text = self.lemmatized_text
+        else:
+            text = self.text
+
+        longest_length = 0
+        for word_id in text:
+            word_length = word_lengths.get(int(word_id))  # Direct lookup
+            if word_length is not None:  #Handle cases where a word_id might not be in the dictionary
+                longest_length = max(longest_length, word_length)
+
+        longest_words_in_text = []
+        for word_id in text:
+            word_length = word_lengths.get(int(word_id)) # Direct Lookup
+            if word_length == longest_length:
+                longest_words_in_text.append(word_id)
+
+        return longest_words_in_text
+
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+        return None
+
+    finally:
+        if cnx:
+            cnx.close()       
 

@@ -2,7 +2,7 @@ import os, sys
 import requests 
 from datetime import datetime, timedelta
 import numpy as np
-import webscraper.init_database as init
+import webscraper.database_init as init
 import time
 import webscraper.setup_scraper as setup
 import webscraper.scraper as scraper
@@ -89,18 +89,18 @@ if __name__ == "__main__":
         # Run data analysis if the command is left blank
         elif input_data == '':
             input_data = input("Simple data analysis mode engaged. \nWhat is the title of the book you want to analyse? ")
-            does_book_exist = utils.get_books_with_title(input_data, params.db_config)    # see if a book by given title exist in the table of content
+            does_book_exist = utils.get_books_with_title(input_data, False, params.db_config)    # see if a book by given title exist in the table of content
             
             if does_book_exist[0]['StoredAndProcessed'] == True:                       #for simplicity's sake, only look at the first book found.
                 book = book.Book(int(does_book_exist[0]['Id']), params.db_config)
                 filename = f"{book.book_id}.png"
-                exclude_values = utils.get_non_alphanumerics(f"{book.language_name}dictionary", params.db_config)
+                #exclude_values = utils.get_non_alphanumerics(f"{book.language_name}dictionary", params.db_config)
                
                 
                 # REWRITE ASAP - this is just some quick and ugly analysis code, done to confirm that everything works
-                most_frequent_word = analysis.find_most_frequent_word(book.text, exclude_values)
-                most_frequent_words = analysis.find_top_n_most_frequent(book.text, 20, exclude_values)
-                words_used_only_once = analysis.find_unique_words(book.text, exclude_values)
+                most_frequent_word = analysis.find_most_frequent_word(book.text, book.exclude)
+                most_frequent_words = analysis.find_top_n_most_frequent(book.text, 20, book.exclude)
+                words_used_only_once = analysis.find_unique_words(book.text, book.exclude)
                 sentences = analysis.split_text_by_sentences(book.text, params.punctuations)
                 longest_sentence = analysis.find_longest_sentences(book.text, params.punctuations)
                 shortest_sentence = analysis.find_shortest_sentences(book.text, params.punctuations)
@@ -138,7 +138,7 @@ if __name__ == "__main__":
                    
         else:
             print(f'Attempting to encode and upload the book {input_data} to the database')
-            input_books = utils.get_books_with_title(input_data, params.db_config)
+            input_books = utils.get_books_with_title(input_data, True, params.db_config)
             
             book = {
                 'title'         : '', 
@@ -159,7 +159,6 @@ if __name__ == "__main__":
                     print(f"The book '{input_books[0]['Title']}' has already been stored in the database.")
                     break
                 else:
-                    #book_by_input_title = utils.get_books_with_title(input_data, params.db_config)
                     print(f"The book {input_books[0]['Title']} by {input_books[0]['Author']} ({input_books[0]['Language']}) was found. Scraping, encoding and storing it in the database.")
                     
                     # Scrape info and store in book dictionary
