@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
 import re
 from functools import lru_cache
+from collections import Counter
 
 # find the word used most often in a text (converted to integer). excluding things like .,!?-_</
 def find_most_frequent_word(text, exclude_values):
@@ -33,6 +34,7 @@ def find_top_n_most_frequent(text, number_of_words, exclude_values):
         exclude_values = np.append(exclude_values, most_frequent)  
 
     return top_n_values 
+
 
 # find words that only occur once in a text (converted to integers)
 def find_unique_words(text, exclude_values):
@@ -145,7 +147,7 @@ def find_longest_words(text, language_id, db_config):
             if word_length == longest_length:
                 longest_words_in_text.append(word_id)
 
-        return longest_words_in_text
+        return list(dict.fromkeys(longest_words_in_text)) # remove duplicates
 
     except mysql.connector.Error as err:
         print(f"Error: {err}")

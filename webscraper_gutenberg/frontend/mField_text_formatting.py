@@ -24,7 +24,7 @@ def books_words(books, words):
     
     return output_string
 
-# formats the text output with one word per book
+# formats the text output with one index next each word
 def indices_words(indices, words):
     output_string = ""
     
@@ -68,31 +68,15 @@ def books_sentences(books, sentences, sentences_per_book):
         output_string += "<br>"
         
     return output_string
-    
+     
+# Removes duplicate word based on case sensitivity #NOTE: no longer in use. remove?    
+def remove_duplicates(word_list):
+    unique_words = []
+    seen_words = set()
 
-def find_most_frequent_word(books, words):
-    pass
-    
-def find_top_n_most_frequent(text, number_of_words, exclude_values):
-    pass
-def find_unique_words(text, exclude_values):
-    pass    
-    
-def find_longest_sentences(text, separators):
-    pass
-def find_shortest_sentences(text, separators):  
-    pass
-def find_sentences_starting_with(text_array, separator_array, first_word_in_sentence): 
-    pass
+    for word in word_list:
+        if word not in seen_words:
+            unique_words.append(word)
+            seen_words.add(word)
 
-def calculate_average_sentence_length(text_array, separator_array):
-    pass
-def find_longest_words(text, language_id, db_config):
-    pass    
-    
-   
-def word_placement_equivalence():
-    pass    
-    
-    
-    
+    return unique_words

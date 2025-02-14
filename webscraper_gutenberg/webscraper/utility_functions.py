@@ -43,12 +43,13 @@ def get_books_with_title(title, get_all, db_config):
         if get_all: # get all books by title
             query = """SELECT Id, SourceWebsite, Title, Author, Language, 
             StoredAndProcessed, WordCount, CharacterCount FROM book 
-            WHERE Title = %s"""
+            WHERE Title LIKE %s"""
         else:       # only get books stored and encoded
             query = """SELECT Id, SourceWebsite, Title, Author, Language, 
             StoredAndProcessed, WordCount, CharacterCount FROM book 
-            WHERE StoredAndProcessed = 1 AND Title = %s"""
-        cursor.execute(query, (title,))
+            WHERE StoredAndProcessed = 1 AND Title LIKE %s"""
+        titles = ("%" + title + "%",) # all books containing the substring "title"
+        cursor.execute(query, titles,)
         books = cursor.fetchall()
         
         # replace author and language IDs with their names
@@ -72,11 +73,11 @@ def get_book_ids_with_title(title, get_all, db_config):
         cursor = cnx.cursor(dictionary=True)  
         
         if get_all: # get all books by title
-            query = "SELECT Id FROM book WHERE Title = %s"
+            query = "SELECT Id FROM book WHERE Title LIKE %s"
         else:       # only get books stored and encoded
-            query = "SELECT Id FROM book WHERE StoredAndProcessed = 1 AND Title = %s" 
-        
-        cursor.execute(query, (title,))
+            query = "SELECT Id FROM book WHERE StoredAndProcessed = 1 AND Title LIKE %s" 
+        titles = ("%" + title + "%",) # all books containing the substring "title"
+        cursor.execute(query, titles)
         books = cursor.fetchall()
         book_ids = []
  

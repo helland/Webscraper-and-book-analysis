@@ -1016,3 +1016,35 @@ def update_word_entry_counts(db_config):
             cnx.close()
 
 '''
+''' # versions using text instead of int values
+# Finds the n most frequent words in the text 
+def find_top_n_most_frequent(text, number_of_words, exclude_values):
+    
+    if number_of_words is None or number_of_words == 0:
+        number_of_words = 1  # Return only 1 value if the parameter is invalid.
+  
+    words = text.lower().split()                                                    # 1. Convert text to lowercase and split into words   
+    filtered_words = [word for word in words if word not in exclude_values]         # 2. Remove excluded words  
+    word_counts = Counter(filtered_words)                                           # 3. Count word frequencies
+    top_n_words = [word for word, count in word_counts.most_common(number_of_words)]# 4. Get the top n most frequent words
+
+    return top_n_words
+
+
+# Finds the single most frequent word in the text
+def find_most_frequent_word(text, exclude_values):
+    words = text.lower().split()
+    filtered_words = [word for word in words if word not in exclude_values]
+
+    if not filtered_words:  # Handle the case where all words are excluded.
+        return None
+
+    word_counts = Counter(filtered_words)
+
+    if word_counts: # Check if there are any words left after filtering.
+        most_common = word_counts.most_common(1)
+        return most_common[0][0] # Return the most frequent word
+    else:
+        return None # Return None if no words are found.
+'''
+            

@@ -6,6 +6,7 @@ import webscraper.database_init as init
 import webscraper.analysis_functions as analysis
 import webscraper.params as params
 import webscraper.book as book
+import webscraper.scraper as scraper
 import frontend.mField_text_formatting as mField
 from functools import lru_cache
 import cgitb 
@@ -127,23 +128,23 @@ class Ui_MainWindow(object):
         self.horizontalLayout_search = QtWidgets.QHBoxLayout()
         self.horizontalLayout_search.setSpacing(0)
         self.horizontalLayout_search.setObjectName("horizontalLayout_search")
-        self.search_lineEdit = QtWidgets.QLineEdit(self.centralwidget)
-        self.search_lineEdit.setEnabled(True)
+        self.lineEdit_search = QtWidgets.QLineEdit(self.centralwidget)
+        self.lineEdit_search.setEnabled(True)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(6)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.search_lineEdit.sizePolicy().hasHeightForWidth())
-        self.search_lineEdit.setSizePolicy(sizePolicy)
-        self.search_lineEdit.setObjectName("search_lineEdit")
-        self.horizontalLayout_search.addWidget(self.search_lineEdit)
-        self.search_pushButton = QtWidgets.QPushButton(self.centralwidget)
+        sizePolicy.setHeightForWidth(self.lineEdit_search.sizePolicy().hasHeightForWidth())
+        self.lineEdit_search.setSizePolicy(sizePolicy)
+        self.lineEdit_search.setObjectName("lineEdit_search")
+        self.horizontalLayout_search.addWidget(self.lineEdit_search)
+        self.button_search = QtWidgets.QPushButton(self.centralwidget)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.search_pushButton.sizePolicy().hasHeightForWidth())
-        self.search_pushButton.setSizePolicy(sizePolicy)
-        self.search_pushButton.setObjectName("search_pushButton")
-        self.horizontalLayout_search.addWidget(self.search_pushButton)
+        sizePolicy.setHeightForWidth(self.button_search.sizePolicy().hasHeightForWidth())
+        self.button_search.setSizePolicy(sizePolicy)
+        self.button_search.setObjectName("button_search")
+        self.horizontalLayout_search.addWidget(self.button_search)
         self.gridLayout_search.addLayout(self.horizontalLayout_search, 1, 0, 1, 1)
         self.horizontalLayout_topBar.addLayout(self.gridLayout_search)
         self.horizontalLayout_topBar.setStretch(0, 1)
@@ -209,18 +210,7 @@ class Ui_MainWindow(object):
         self.listWidget_books.setObjectName("listWidget_books")
         self.verticalLayout_rightBar.addWidget(self.listWidget_books)
         
-        # get all stored books and populate the "Books" list with them
-        books_in_database = utils.get_stored_and_processed_books(self.db_config)  
-        sorted_books = sorted(books_in_database, key=lambda d: d['Title'])                  # sort books by title name
-        self.listWidget_books.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)  # enable selection of multiple items
-        
-        for book in sorted_books:
-            item = QtWidgets.QListWidgetItem(book['Title'])  # Create item
-            font = QtGui.QFont()
-            font.setBold(True)  # Set the font to bold
-            item.setFont(font)  # Apply the font to the item
-            item.setFlags(item.flags() | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)  # Make item selectable
-            self.listWidget_books.addItem(book['Title']) # Add book to the list
+        self.populate_book_list() # add all books in the database to the "Books" listwidget items
         
         self.verticalLayout_rightBar.setStretch(2, 1)
         self.horizontalLayout_allExcepEnterButton.addLayout(self.verticalLayout_rightBar)
@@ -276,7 +266,10 @@ class Ui_MainWindow(object):
 
         # connect enter button to its function
         self.button_enter.clicked.connect(self.enter_button)
-
+        
+        # Connect search button
+        self.button_search.clicked.connect(self.show_search_results)
+        
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
@@ -294,7 +287,7 @@ class Ui_MainWindow(object):
         self.comboBox_analysis.setItemText(10, _translate("MainWindow", "Find identical indices"))
         self.label_N.setText(_translate("MainWindow", "N"))
         self.label_search.setText(_translate("MainWindow", "Search Gutenberg\'s table of content for book by title:"))
-        self.search_pushButton.setText(_translate("MainWindow", ">"))
+        self.button_search.setText(_translate("MainWindow", ">"))
         self.groupBox_leftSide.setTitle(_translate("MainWindow", "Alter text"))
         self.checkBox_filter.setText(_translate("MainWindow", "Filter Stoppwords"))
         self.checkBox_lemmatization.setText(_translate("MainWindow", "Lemmatization"))
@@ -306,6 +299,122 @@ class Ui_MainWindow(object):
         self.actionSetup_database.setText(_translate("MainWindow", "Setup database"))
         self.actionSetup_Table_of_content.setText(_translate("MainWindow", "Setup Table of content"))
 
+    # get all stored books and populate the "Books" list with them
+    def populate_book_list(self):
+        self.listWidget_books.clear() # remove all items in order to repopulate the list
+        books_in_database = utils.get_stored_and_processed_books(self.db_config)  
+        sorted_books = sorted(books_in_database, key=lambda d: d['Title'])                  # sort books by title name
+        self.listWidget_books.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)  # enable selection of multiple items
+        
+        for book in sorted_books:
+            item = QtWidgets.QListWidgetItem(book['Title'])  # Create item
+            font = QtGui.QFont()
+            font.setBold(True)  # Set the font to bold
+            item.setFont(font)  # Apply the font to the item
+            item.setFlags(item.flags() | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)  # Make item selectable
+            self.listWidget_books.addItem(book['Title']) # Add book to the list
+            
+        
+    # What happens when the user hits the search button
+    def show_search_results(self):
+        search_term = self.lineEdit_search.text()
+        if not search_term:  # Handle empty search
+            return
+        else:
+            self.hide_search_widgets() # hide any previous search if the user makes a new search
+            
+        self.search_results = utils.get_books_with_title(search_term, True, self.db_config)
+        
+        # Create listWidget_search
+        self.listWidget_search = QtWidgets.QListWidget(self.centralwidget)
+        self.listWidget_search.setGeometry(self.lineEdit_search.geometry().x(), self.lineEdit_search.geometry().y() + self.lineEdit_search.geometry().height(), self.lineEdit_search.geometry().width(), self.listWidget_books.geometry().height())
+        self.listWidget_search.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
+        self.listWidget_search.setWordWrap(False) # word wrap for title display 
+
+        # Populate listWidget_search
+        for i, book_data in enumerate(self.search_results):
+            if i < 50:
+                item = QtWidgets.QListWidgetItem(book_data['Title'])
+                font = QtGui.QFont()
+                font.setBold(True)
+                item.setFont(font)
+                self.listWidget_search.addItem(item)
+            else:
+                item = QtWidgets.QListWidgetItem(f"{len(self.search_results)} books found with given search term.")
+                item.setFlags(QtCore.Qt.ItemIsEnabled)  # Not selectable
+                self.listWidget_search.addItem(item)
+                break  # Stop adding items after the "Total found" message
+
+        self.listWidget_search.show()
+
+        # Create buttons
+        self.button_add_to_db = QtWidgets.QPushButton("Add to DB", self.centralwidget)
+        self.button_cancel = QtWidgets.QPushButton("Cancel", self.centralwidget)
+
+        button_width = int(self.lineEdit_search.geometry().width() / 2)  # Divide width for two buttons  
+        self.button_add_to_db.setGeometry(self.lineEdit_search.geometry().x(), self.listWidget_search.geometry().y() + self.listWidget_search.geometry().height(), button_width, 30)  # Adjust height as needed
+        self.button_cancel.setGeometry(self.lineEdit_search.geometry().x() + button_width, self.listWidget_search.geometry().y() + self.listWidget_search.geometry().height(), button_width, 30)
+
+        self.button_add_to_db.clicked.connect(self.add_selected_books)
+        self.button_cancel.clicked.connect(self.hide_search_widgets)
+
+        self.button_add_to_db.show()
+        self.button_cancel.show()
+
+    # Add selected books (in full) from table of content search to the database
+    def add_selected_books(self):
+        selected_items = self.listWidget_search.selectedItems()
+        if not selected_items:
+            return  # No books selected
+
+        selected_books = []
+        for item in selected_items:
+            for book in self.search_results:
+                if book['Title'] == item.text():
+                    selected_books.append(book)
+                    break
+        
+        added_books_titles, scraped_books = [], []
+        for book_data in selected_books:
+            try:
+                # create dictionary for the book details
+                book_dict = {   # TODO: change the scraper functions so that it won't be necessary to reformat these details between the scraper and database storage
+                'title'         : '', 
+                'text'          : '', 
+                'author'        : '', 
+                'release_date'  : '', 
+                'language'      : '', 
+                'word_count'    : '', 
+                'character_count':'', 
+                'source_website': book_data['SourceWebsite'] 
+                }
+                # Scrape book text + details
+                book_dict['title'], book_dict['author'], book_dict['release_date'], book_dict['language'], book_dict['text'], book_dict['word_count'], book_dict['character_count'] = scraper.gutenberg_book_scraper(book_data['SourceWebsite'])
+                added_books_titles.append(book_data['Title'])
+                scraped_books.append(book_dict)
+            
+            except Exception as e:
+                print(f"Error adding book {book_data['Title']}: {e}") # Print error to console
+        
+        self.hide_search_widgets()
+        
+        # Store book in the database
+        self.textEdit_mainField.setText("Storing books in database. Plase wait...")
+        scraper.store_books_in_database(scraped_books, params.db_config)
+        self.populate_book_list() # add all books in the database to the "Books" listwidget items, including the newly stored books
+        self.textEdit_mainField.setText("The following books were added to the database:\n" + "\n".join(added_books_titles))    
+        # Show popup message
+        QtWidgets.QMessageBox.information(self.centralwidget, "Books Added", "The following books were added to the database:\n" + "\n".join(added_books_titles))
+
+    # remove the search results from view after the user is done with it (or hit cancel)
+    def hide_search_widgets(self):
+        if hasattr(self, 'listWidget_search'):
+            self.listWidget_search.hide()
+            self.button_add_to_db.hide()
+            self.button_cancel.hide()
+            del self.listWidget_search
+            del self.button_add_to_db
+            del self.button_cancel
 
     # check which books has been selected by the user
     def get_selected_books(self):    
@@ -339,8 +448,6 @@ class Ui_MainWindow(object):
         if not books: 
             print("No books selected.")
             return None # The button takes no action if no books are selected
- 
-
         
         # Decide what type of text analysis you want to do on the selected books
         book_analysis = self.comboBox_analysis.currentIndex()        
