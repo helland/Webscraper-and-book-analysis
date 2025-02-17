@@ -1,12 +1,11 @@
+
 import mysql.connector
-import numpy as np 
+import numpy as np
+import matplotlib.pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
 import re
 from functools import lru_cache
 from collections import Counter
-import time
-from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # find the word used most often in a text (converted to integer). excluding things like .,!?-_</
 def find_most_frequent_word(text, exclude_values):
@@ -121,119 +120,94 @@ def _get_all_word_lengths_from_dict(cursor, dictionary_table_name):
     word_lengths_dict = dict(cursor.fetchall())
     return word_lengths_dict
 
-def find_longest_words(text, language_id, db_config):
-    try:
-        cnx = mysql.connector.connect(**db_config)
-        cursor = cnx.cursor()
+def find_longest_words(text, language_id, cursor):
+    #try:
+    #    cnx = mysql.connector.connect(**db_config)
+    #    cursor = cnx.cursor()
 
-        get_language_query = "SELECT Name FROM languages WHERE id = %s"
-        cursor.execute(get_language_query, (language_id,))
-        result = cursor.fetchone()
-        if not result:
-            raise ValueError(f"Language with ID {language_id} not found.")
-        language_name = result[0].lower()
+    get_language_query = "SELECT Name FROM languages WHERE id = %s"
+    cursor.execute(get_language_query, (language_id,))
+    result = cursor.fetchone()
+    if not result:
+        raise ValueError(f"Language with ID {language_id} not found.")
+    language_name = result[0].lower()
 
-        dictionary_table_name = f"{language_name.lower()}dictionary"
+    dictionary_table_name = f"{language_name.lower()}dictionary"
 
-        word_lengths = _get_all_word_lengths_from_dict(cursor, dictionary_table_name)
+    word_lengths = _get_all_word_lengths_from_dict(cursor, dictionary_table_name)
 
-        longest_length = 0
-        for word_id in text:
-            word_length = word_lengths.get(int(word_id))  # Direct lookup
-            if word_length is not None:  #Handle cases where a word_id might not be in the dictionary
-                longest_length = max(longest_length, word_length)
+    longest_length = 0
+    for word_id in text:
+        word_length = word_lengths.get(int(word_id))  # Direct lookup
+        if word_length is not None:  #Handle cases where a word_id might not be in the dictionary
+            longest_length = max(longest_length, word_length)
 
-        longest_words_in_text = []
-        for word_id in text:
-            word_length = word_lengths.get(int(word_id)) # Direct Lookup
-            if word_length == longest_length:
-                longest_words_in_text.append(word_id)
+    longest_words_in_text = []
+    for word_id in text:
+        word_length = word_lengths.get(int(word_id)) # Direct Lookup
+        if word_length == longest_length:
+            longest_words_in_text.append(word_id)
 
-        return list(dict.fromkeys(longest_words_in_text)) # remove duplicates
+    return list(dict.fromkeys(longest_words_in_text)) # remove duplicates
 
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
-        return None
+    #except mysql.connector.Error as err:
+    #    print(f"Error: {err}")
+    #    return None
 
-    finally:
-        if cnx:
-            cnx.close()       
+    #finally:
+    #    if cnx:
+    #        cnx.close()       
        
 
 # Returns a list of all words that are the same in all input books at the same placement (eg. word number 10034 = "this" in all books would add 10034 to the return array).
 def word_placement_equivalence(books):
     if not books:
         return np.array([], dtype=int)  # Handle empty input
-    
-    start_time = time.time()
-    
+
     min_len = min(len(book.text) for book in books)  # Find the shortest book length
+
+    #if not all(len(book.text) == min_len for book in books): #Check if all books have the same length
+    #    print("Warning: Input books have different lengths. Using the shortest length.")
 
     equivalent_indices = []
     for i in range(min_len):  # Iterate up to the shortest length
         word = books[0].text[i]  # Get the word from the first book
         if all(book.text[i] == word for book in books[1:]):  # Check other books
             equivalent_indices.append(i)
-    
-    print(f"idex comparison took: {round(time.time() - start_time, 2)} seconds")
-    
+
     return equivalent_indices #np.array(, dtype=int)   
 
-# cout occurrence of words in list of books
-def count_word_occurrences(book):   
-    counts = defaultdict(int)
-    for word in book.text:
-        counts[word] += 1
-    return dict(counts)
+# does the same as above, except it compares string values instead of integers
+def word_placement_equivalence_strings(books):
+    if not books:
+        return []  # Handle empty input
 
-# Calculates the deviation of word counts for a single book from the total counts of all books used.
-def calculate_deviation(book_counts, total_counts, book_length, total_length):
-    deviation = 0
-    all_words = set(book_counts.keys()).union(total_counts.keys())
+    # Split each book string into a list of words (including punctuation)
+    book_words_lists = [re.findall(r"[\w']+|[.,!?;:_-\—\(\)\[\]\{\}\"]", book) for book in books]
 
-    for word in all_words:
-        book_count = book_counts.get(word, 0)
-        total_count = total_counts.get(word, 0)
+    # Find the minimum number of words among all books
+    min_len = min(len(book_words) for book_words in book_words_lists)
 
-        # Calculate relative frequencies:
-        book_freq = book_count / book_length if book_length > 0 else 0
-        total_freq = total_count / total_length if total_length > 0 else 0
+    # Check if all books have the same number of words
+    #if not all(len(book_words) == min_len for book_words in book_words_lists):
+    #    print("Warning: Input books have different lengths. Using the shortest length.")
 
-        deviation += abs(book_freq - total_freq)  # Deviation is the absolute difference in frequencies
+    equivalent_indices = []
+    for i in range(min_len):
+        word = book_words_lists[0][i]
+        if all(book_words[i] == word for book_words in book_words_lists[1:]):
+            equivalent_indices.append(i)
 
-    return deviation
+    return equivalent_indices    
 
-# Finds the book with the highest deviation in word counts.
-def find_book_with_highest_deviation(books):
-    total_counts = defaultdict(int)
-    total_length = 0
 
-    book_counts_list = []  # Store individual book counts
-
-    for book in books:
-        book_counts = count_word_occurrences(book)  # Calculate for each book individually
-        book_counts_list.append(book_counts)
-        book_length = len(book.text)
-        total_length += book_length
-
-        for word, count in book_counts.items(): # Add to the total count
-            total_counts[word] += count
-
-    total_counts = dict(total_counts)  # Convert to regular dict
-
-    highest_deviation = -1
-    book_with_highest_deviation = None
-
-    for i, book in enumerate(books):        # Iterate through books
-        book_counts = book_counts_list[i]   # Retrieve pre-calculated counts
-        book_length = len(book.text)
-        deviation = calculate_deviation(book_counts, total_counts, book_length, total_length)
-
-        if deviation > highest_deviation:
-            highest_deviation = deviation
-            book_with_highest_deviation = book
-
-    return book_with_highest_deviation, highest_deviation
+# get the word corresponding to given ID from relevant dictionary in the database - NOTE: old version, might be deprecated
+@lru_cache(maxsize=200000)  # add caching, because the same word coming up more than once is quite likely
+def _get_word_from_dict(cursor, dictionary_table_name, word_id):
+    get_word_query = f"SELECT Word FROM {dictionary_table_name} WHERE Id = %s"
+    cursor.execute(get_word_query, (int(word_id),))  
+    word_data = cursor.fetchone()
+    return word_data[0] if word_data else None
 
 # fetch all words and IDs from relevant dictionary in the database
 @lru_cache(maxsize=350000)
@@ -243,51 +217,54 @@ def _get_all_words_from_dict(cursor, dictionary_table_name):
     complete_dictionary = dict(cursor.fetchall()) # Convert to dictionary for fast lookup
     return complete_dictionary
 
-# Decodes an array (or array of arrays) of integers (word IDs) into a list of words by taking the whole dictionary from the database and comparing IDs  
-def cipher_decoder(encoded_text, language_id, db_config):
-    max_threads = 1 # Increase threads to potentially speed up the function. My poor, ancient laptop prefers only 1.
+# Decodes an array of integers (word IDs) into a list of words by taking the whole dictionary from the database and comparing IDs  
+def cipher_decoder(encoded_text, language_id, cursor):
+    #try:
+    #    cnx = mysql.connector.connect(**db_config)
+    #    cursor = cnx.cursor()
+
+    get_language_query = "SELECT Name FROM languages WHERE id = %s"
+    cursor.execute(get_language_query, (language_id,))
+    language_name = cursor.fetchone()[0].lower()
+    dictionary_table_name = f"{language_name.lower()}dictionary"
+
+    word_dict = _get_all_words_from_dict(cursor, dictionary_table_name)
     
-    try:
-        cnx = mysql.connector.connect(**db_config)
-        cursor = cnx.cursor()
-        
-        # Find the right language dictionary table in the database where the IDs in encoded_text correspond to a string word. 
-        get_language_query = "SELECT Name FROM languages WHERE id = %s"
-        cursor.execute(get_language_query, (language_id,))
-        language_name = cursor.fetchone()[0].lower()
-        dictionary_table_name = f"{language_name.lower()}dictionary"
+    # Helper function to decode a single item (int or list)
+    def decode_item(item):  
+        if isinstance(item, list):  # If it's a list (inner list)
+            inner_decoded = []
+            for inner_item in item:
+                word = word_dict.get(int(inner_item))
+                inner_decoded.append(word if word else f"[ID {inner_item} not found]")
+            return inner_decoded
+        else:  # If it's an int
+            word = word_dict.get(int(item))
+            return word if word else f"[ID {item} not found]"
+    
+    # Convert encoded text to a list if it's a NumPy array
+    if isinstance(encoded_text, np.ndarray):
+        if encoded_text.ndim == 1: #1D numpy array
+            encoded_text = encoded_text.tolist()
+        elif encoded_text.ndim == 2: #2D numpy array
+            encoded_text = encoded_text.tolist()
+        else:
+            raise ValueError("NumPy array must be 1D or 2D")
 
-        word_dict = _get_all_words_from_dict(cursor, dictionary_table_name)
-        
-        # Helper function to decode a single item (int or list)
-        def decode_item(item):
-            if isinstance(item, list):
-                return [word_dict.get(int(inner_item), f"[ID {inner_item} not found]") for inner_item in item]
-            else:
-                return word_dict.get(int(item), f"[ID {item} not found]")
+    if isinstance(encoded_text, list) and all(isinstance(x, list) for x in encoded_text):   #list of lists
+        decoded_words = [decode_item(item) for item in encoded_text]
+    elif isinstance(encoded_text, list):                                                    #list of integers
+        decoded_words = [decode_item(item) for item in encoded_text]
+    else:
+        raise TypeError("encoded_text must be a list or a list of lists")
 
-        # Convert encoded text to a list if it's a NumPy array
-        if isinstance(encoded_text, np.ndarray):
-            if encoded_text.ndim == 1 or encoded_text.ndim == 2:
-                encoded_text = encoded_text.tolist()
-            else:
-                raise ValueError("Numpy array must be 1D or 2D")
 
-        if not isinstance(encoded_text, list):
-            raise TypeError("encoded_text must be a list or a list of lists")
+    return decoded_words
 
-        decoded_words = []
-        with ThreadPoolExecutor(max_workers=max_threads) as executor:  # Correct placement of max_workers
-            futures = [executor.submit(decode_item, item) for item in encoded_text]
+    #except mysql.connector.Error as err:
+    #    print(f"Database error: {err}")
+    #    return []
 
-            for future in as_completed(futures):
-                decoded_words.append(future.result())
-                
-        return decoded_words
-
-    except mysql.connector.Error as err:
-        print(f"Database error: {err}")
-        return []
-    finally:
-        if cnx:
-            cnx.close()
+    #finally:
+    #    if cnx:
+    #        cnx.close()

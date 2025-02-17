@@ -1,0 +1,55 @@
+erDiagram
+    book {
+        INT Id PK
+        TINYTEXT SourceWebsite
+        TINYINT StoredAndProcessed
+        TINYTEXT Title
+        INT Language FK
+        INT Author FK
+        INT WordCount
+        INT CharacterCount
+        DATETIME ReleaseDate
+    }
+    languages {
+        INT Id PK
+        TINYTEXT Name
+        INT NumberOfWordEntries
+    }
+    author {
+        INT Id PK
+        TINYTEXT Name
+    }
+    encoded_text {
+        INT Id PK
+        INT WordId FK
+        INT BookId FK
+    }
+    filtered_text {
+        INT Id PK
+        INT WordId FK
+        INT BookId FK
+    }
+    lemmatized_text {
+        INT Id PK
+        INT WordId FK
+        INT BookId FK
+    }
+    relevant_language_dictionary {
+        INT Id PK
+        TINYTEXT Word
+        INT WordCharacterLength
+    }
+   
+    book ||--o{ languages : Language
+    book ||--o{ author : Author
+    encoded_text ||--o{ book : BookId
+    encoded_text ||--o{ relevant_language_dictionary : WordId   
+    filtered_text ||--o{ book : BookId
+    filtered_text ||--o{ relevant_language_dictionary : WordId  
+    lemmatized_text ||--o{ book : BookId
+    lemmatized_text ||--o{ relevant_language_dictionary : WordId  
+    languages ||--o{ relevant_language_dictionary : Id  
+
+
+
+    
