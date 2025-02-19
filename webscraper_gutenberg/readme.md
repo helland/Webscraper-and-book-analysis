@@ -143,9 +143,14 @@ Select books from the "Books" list widget to perform analysis on them.
 
 Choose the desired analysis type from the dropdown menu.
 
+![Analysis function to find the average sentence length](misc/average.png)
+
+
+Click the "Enter" button to run the selected analysis. The results will be displayed in the main text area. 
+
 ![Analysis function to find the most frequent words used in a book](misc/most_freq_words.png)
 
-Click the "Enter" button to run the selected analysis. The results will be displayed in the main text area. If the user wants to filter out stop words or lemmatize the text, they can use the check boxes in the upper right corner.
+If the user wants to filter out stop words or lemmatize the text, they can use the check boxes in the upper right corner.
 
 ![Analysis function to find the most frequent words used in a book while filtering out stop words](misc/most_freq_words_filtered.png)
 
