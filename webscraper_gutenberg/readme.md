@@ -57,6 +57,9 @@ Intuitive PyQt5 interface with clear labels and controls.
 
 Allows users to set up a database with input connection details (host, user, password, database name). If it does not exist already, but the host, username and password is valid, the database and relevant tables will be created automatically.
 
+**Lexical encoding** 
+
+The books stored in the database has had their text encoded in a fairly simple way. Each word is stored in a "dictionary" table for the relevant language. These words are assigned an id. The book's text can be found in a separate table with three id values for every word, which determins the order, word and book it relates to. The books are stored this way to improve performance whne running analyses on the text, letting the functions deal with integer values instead of strings.
  
 ## Installation
 
@@ -182,10 +185,11 @@ misc/: nothing of note, except perhaps some diagrams and generated files (like w
 
 ##### Miscellaneous features that should be added:
 
-Add a third scraper that goes through Project Gutenberg's categories and compares the book links found to those already in the database. If it finds a familiar link (meaning, a book that has already been saved in the database), it should then update a new table called "categories" with this book's id as well as another int value representing the category the scraper found the book saved under. As Gutenberg has a set amount of categories, these int values can either be hard coded, or added to a separate table where the category id corresponds to a category name (so, two new tables; "categories" with columns "Id" and "Name", as well as "books_in_category" with columns "BookId" and "CategoryId"). I would set the tables up in this way because each book can belong to multiple categories. A less efficient, but simpler way of doing it would be to simply have one table "categories" with column "BookId" (int) and "Category" (tinystring), but you would end up with a large number of identical string values.
+Add a third scraper that goes through Project Gutenberg's categories and compares the book links found to those already in the database. If it finds a familiar link (meaning, a book that has already been saved in the database), it should then update a new table called "categories" with this book's id as well as another int value representing the category the scraper found the book saved under. As Gutenberg has a set amount of categories, these int values can either be hard coded, or added to a separate table where the category id corresponds to a category name (so, two new tables; "categories" with columns "Id" and "Name", as well as "books_in_category" with columns "BookId" and "CategoryId"). The tables should be set up in this way because each book can belong to multiple categories.
+
+The purpose of structuring the application the way it's been is to improve the analysis runtime. As of right now, each analysis function is run individually and the result is shown in the main text field. This is not a good way of doing it if performance was the primary consideration. Had the analysis functions been more advanced and would take a significant time to run, the optimal way of doing them would be to let the user run them all one after another and then print out the result as text (or as graphs, should it be desired) at the end when all analysis has been done. So, an option to run multiple analyses before showing any results and potentially save the result externally instead of showing it in the text field would be ideal.
 
 Allow the user to print out the actual full text of a book in the application. As this application was meant for text analysis and not reading, this function was not prioritized (should the user desire to do so, they can always go to Gutenberg to read). Alternatively, print out basic information on selected books, including a link to where it can be found on Gutenberg.
-
 
 ##### Analysis function improvements and additions:
 
@@ -227,6 +231,7 @@ Either (or both) make it possible to populate the book objects holding all the i
 
 Set user_pure=False. When use_pure is set to True, the database connection uses pure python code, which is slower than the alternative, which would use a C Extension that uses the MySQL C client library. This was set to True due to a non-functional C extension, but with the extension installed properly, it would make the database connections faster and improve the application's performance whenever it connects to the database.
 
+This project should have been written in cython, C or some other language with better expected runtime. 
 
 ## License
 	public domain	
